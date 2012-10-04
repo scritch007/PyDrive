@@ -1,7 +1,6 @@
 import urllib2
 import urllib
 import json
-import os
 
 __CLIENT_ID__ = "415200970618.apps.googleusercontent.com"
 __CLIENT_SECRET__ = "jpgtxTMwtbQkgWUi1cnSk56f"
@@ -118,43 +117,9 @@ if __name__ == "__main__":
     result = check_authentication()
     http = get_authenticated_http(result)
 
-    from apiclient import errors
-    from apiclient.discovery import build
-
-    service = build('drive', 'v2', http=http)
-
-    about = service.about().get().execute()
-
-    def print_files_in_folder(service, folder_id):
-        """Print files belonging to a folder.
-
-        Args:
-          service: Drive API service instance.
-          folder_id: ID of the folder to print files from.
-        """
-        page_token = None
-        while True:
-            try:
-                print "Browsing %s" % folder_id
-                param = {}
-                if page_token:
-                    param['pageToken'] = page_token
-                children = service.children().list(folderId=folder_id, **param).execute()
-
-                for child in children.get('items', []):
-                    print 'File Id: %s' % child['id']
-                    child_info = service.files().get(fileId=child['id']).execute()
-                    print child_info['title']
-                    print child_info['mimeType']
-                page_token = children.get('nextPageToken')
-                if not page_token:
-                    break
-            except errors.HttpError, error:
-                print 'An error occurred: %s' % error
-                break
-        return result
-
-    print_files_in_folder(service, about["rootFolderId"])
+    from file import File
+    f = File(http)
+    f.sync("/home/blegrand/temp")
 
 
 
