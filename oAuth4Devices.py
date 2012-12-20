@@ -1,3 +1,4 @@
+#!/usr/bin/python
 import urllib2
 import urllib
 import json
@@ -100,11 +101,11 @@ def get_authenticated_http(authentication):
     import datetime
     import httplib2
     token_expiry = datetime.datetime.utcnow() + datetime.timedelta(
-                seconds=int(result['expires_in']))
+                seconds=int(authentication['expires_in']))
 
-    credentials = OAuth2Credentials(result['access_token'], __CLIENT_ID__,
-            __CLIENT_SECRET__, result['refresh_token'], token_expiry, TOKEN_URL,
-            None, id_token=result['id_token'])
+    credentials = OAuth2Credentials(authentication['access_token'], __CLIENT_ID__,
+            __CLIENT_SECRET__, authentication['refresh_token'], token_expiry, TOKEN_URL,
+            None, id_token=authentication['id_token'])
 
 
     http = httplib2.Http()
