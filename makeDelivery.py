@@ -39,7 +39,7 @@ class Delivery(object):
                     print "Found '%s'" % child_info['title']
                     if folder == child_info['title']:
                         return child['id']
-                    
+
                 page_token = children.get('nextPageToken')
                 if not page_token:
                     break
@@ -80,6 +80,25 @@ class Delivery(object):
         self.make_delivery(local_rom_path, os.path.join(dest_folder, "rom"), remote_rom_name)
 
 
+    def start_async_upload(self, file_body, r_file):
+        import threading
+
+        class AsyncUpload(threading.Thread):
+            def __init__(self, delivery, body, r_file):
+                super(AsyncUpload, self).__init__()
+                self.delivery   = delivery
+                self.body       = body
+                self.r_file     = r_file
+
+            def run(self):
+                self.delivery.service.files().update(fileId=self.r_file['id'],
+                                            body=self.r_file,
+                                            media_body=self.body).execute()
+
+        upload = AsyncUpload(self, file_body, r_file)
+        upload.start()
+        return upload
+
     def make_delivery(self, local_file_path, dest_folder, remote_file_name):
         #Get Root folder
         about = self.service.about().get().execute()
@@ -91,9 +110,9 @@ class Delivery(object):
 
         #Now that we've got the correct remote_id for the folder we can browse it to retrieve latest version available
         children = self.list_files(remote_id)
-        
+
         for child in children:
-            assert(child['title'] != remote_file_name) 
+            assert(child != remote_file_name)
 
 
         new_file = {}
@@ -104,33 +123,28 @@ class Delivery(object):
         #First of all create the file
         r_file = self.service.files().insert(body=new_file,
                 media_body=None).execute()
-        #TODO compare the checksums
-        md5 = self.compute_md5(local_file_path)
-        r_md5 = r_file['md5Checksum']
 
 
         media_body = MediaFileUpload(local_file_path,
                 mimetype=r_file['mimeType'], resumable=True)
 
-        if md5 != r_md5:
 
-            debug(md5)
-            debug(local_file_path)
-            debug(r_file['md5Checksum'])
+        upload_thread = self.start_async_upload(media_body, r_file)
+        import time
+        time.sleep(1)
+        while media_body.progress is None:
+            print "Waiting for upload to start"
 
-            #TODO UPDATE
-            r_file = self.service.files().update(fileId=r_file['id'],
-                                            body=r_file,
-                                            media_body=media_body).execute()
-        else:
-            #The md5 are egals do not update
-            pass
-
+        while media_body.progress.progress() < 1:
+            time.sleep(1)
+            print "current progress %s" % int(media_body.progress.progress()
+                        * 100)
+        upload_thread.join()
 
 if __name__ == "__main__":
     result = check_authentication()
     http = get_authenticated_http(result)
 
     delivery = Delivery(http)
-    delivery.make_delivery_rom("/home/benjamin/android/unzipped_roms/cm-9-20121127-UNOFFICIAL-es209ra-hwa.zip", "AndroidRelease", "cm9.test.zip")    
+    delivery.make_delivery_rom("/home/blegrand/android/jb/out/target/product/es209ra/cm-10-20121220-UNOFFICIAL-es209ra.zip", "AndroidRelease", "cm10.test.zip")
 

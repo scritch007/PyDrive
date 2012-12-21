@@ -416,6 +416,7 @@ class MediaFileUpload(MediaIoBaseUpload):
         in a single request.
     """
     self._filename = filename
+    self.progress  = None
     fd = open(self._filename, 'rb')
     if mimetype is None:
       (mimetype, encoding) = mimetypes.guess_type(filename)
@@ -650,10 +651,11 @@ class HttpRequest(object):
     """
     if http is None:
       http = self.http
+
     if self.resumable:
       body = None
       while body is None:
-        _, body = self.next_chunk(http=http)
+        self.resumable.progress, body = self.next_chunk(http=http)
       return body
     else:
       if 'content-length' not in self.headers:
